@@ -2,39 +2,16 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <wx/wx.h>
 
 using namespace std;
 
 enum class ScaleType{
-    CM,
-    DM,
-    EM,
-    FM,
-    GM,
-    AM,
-    BM,
-
-    Cm,
-    Dm,
-    Em,
-    Fm,
-    Gm,
-    Am,
-    Bm,
-
-    F_SHARP_m,
-    G_FLAT_M,
-    E_FLAT_m,
-    D_SHARP_m,
-    D_FLAT_M,
-    B_FLAT_m,
-    A_FLAT_M,
-    E_FLAT_M,
-    B_FLAT_M,
+    CM, DM, EM, FM, GM, AM, BM,     Cm, Dm, Em, Fm, Gm, Am, Bm,
+    F_SHARP_m, G_FLAT_M, E_FLAT_m, D_SHARP_m, D_FLAT_M, B_FLAT_m, A_FLAT_M, E_FLAT_M, B_FLAT_M,
 
     UNKNOWN
 };
-
 class Scale {
 public:
     ScaleType parseScale (const string& tone){
@@ -58,17 +35,29 @@ public:
     }
 };
 
-int main(){
-    
-    cout << "What scale do you want to show? " << endl;
-    string tone;
-    getline(cin, tone);
-    //cin.getline(tone, 20); //acepta espacios
-    Scale scale1;
-    vector<string> notas = scale1.scalesDetector(scale1.parseScale(tone));
-    for(const string& n : notas){
-        cout << n << " ";
+class MyFrame : public wxFrame {
+public:
+    MyFrame() : wxFrame(nullptr, wxID_ANY, "Validador de notas y acordes", wxDefaultPosition, wxSize(600, 250)) {
+        wxPanel* panel = new wxPanel(this);   
+        wxStaticText* text_tonality = new wxStaticText(panel, wxID_ANY, "Tonalidad", wxPoint(50, 50));
+        wxChoice* tone_note = new wxChoice(panel, wxID_ANY, wxPoint(120, 50), wxSize(80,-1));
+        wxChoice* type_scale = new wxChoice(panel, wxID_ANY, wxPoint(200, 50), wxSize(80, -1));
+        wxStaticText* text_sequence = new wxStaticText(panel, wxID_ANY, "Secuencia", wxPoint(50, 80));
+        wxTextCtrl* field_sequence = new wxTextCtrl(panel, wxID_ANY, "", wxPoint(120, 80), wxSize(110, -1));
+        wxButton* validate_sequence = new wxButton(panel, wxID_ANY, "Validar", wxPoint(230, 80), wxSize(50, -1));
     }
-    return 0;
-}
+};
+
+class MyApp : public wxApp {
+public:
+    bool OnInit() {
+        MyFrame* frame = new MyFrame();
+        frame->Show(true);
+        return true;
+    }
+};
+
+wxIMPLEMENT_APP(MyApp);
+
+
 
