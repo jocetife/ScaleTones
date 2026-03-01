@@ -163,7 +163,7 @@ vector<string> validateSequence(const string& tonalidad, const string& secuencia
         }
     }
 
-    //Validar la última nota si no terminó en espacio
+    //Validar la ultima nota si no termino en espacio
     if(!note.empty()){
         if(std::find(scaleMap[tonalidad].begin(), scaleMap[tonalidad].end(), note) == scaleMap[tonalidad].end()){
             if(chordMap.find(note) != chordMap.end()){
@@ -183,9 +183,91 @@ vector<string> validateSequence(const string& tonalidad, const string& secuencia
     return incorrectNotes;
 }
 
+class PianoDraw : public wxPanel {
+public:
+    PianoDraw(wxWindow* parent) : wxPanel(parent) {
+        SetBackgroundStyle(wxBG_STYLE_PAINT);
+        Bind(wxEVT_PAINT, &PianoDraw::OnPaint, this);
+    }
+
+    void paintScale(const std::string& tonalidad){
+        activeWhite.clear();
+        activeBlack.clear();
+
+        std::vector<std::string> scale = scaleMap[tonalidad];
+
+        std::unordered_map<int, int> transformedIndexesWhite = {
+            {0, 0}, {2, 1}, {4, 2}, {5, 3}, {7, 4}, {9, 5}, {11, 6}
+        };
+
+        std::unordered_map<int, int> transformedIndexesBlack = {
+            {1, 0}, {3, 1}, {6, 3}, {8, 4}, {10, 5}
+        };
+
+        for(const std::string& note : scale){
+            int index = noteToIndex[note];
+
+            if(transformedIndexesWhite.count(index)) {
+                int whiteIndex = transformedIndexesWhite[index];
+                activeWhite.push_back(whiteIndex);
+
+                if(index == 0) {
+                    activeWhite.push_back(7);
+                }
+            }
+            if(transformedIndexesBlack.count(index))
+                activeBlack.push_back(transformedIndexesBlack[index]);
+        }
+
+        Refresh();
+    }
+
+private:
+    std::vector<int> activeWhite;
+    std::vector<int> activeBlack;
+
+    void OnPaint(wxPaintEvent&) {
+        wxAutoBufferedPaintDC dc(this);
+
+        wxSize size = GetClientSize();
+        if (size.x <= 0 || size.y <= 0) return;
+
+        int keyWidth  = size.x / 8;
+        int keyHeight = size.y;
+
+        dc.SetPen(*wxBLACK_PEN);
+
+        for (int i = 0; i < 8; ++i) {
+
+            if(std::find(activeWhite.begin(), activeWhite.end(), i) != activeWhite.end())
+                dc.SetBrush(wxBrush(wxColour(200,200,200))); // gris claro
+            else
+                dc.SetBrush(*wxWHITE_BRUSH);
+            dc.DrawRectangle(i * keyWidth, 0, keyWidth, keyHeight);
+        }
+
+        int blackHeight = keyHeight * 0.6;
+        int blackWidth  = keyWidth / 2;
+
+        for (int i = 0; i < 7; ++i) {
+            if (i == 2 || i == 6) continue;
+
+            int x = (i + 1) * keyWidth - blackWidth / 2;
+
+            if(std::find(activeBlack.begin(), activeBlack.end(), i) != activeBlack.end())
+                dc.SetBrush(wxBrush(wxColour(200,200,200)));
+            else
+                dc.SetBrush(*wxBLACK_BRUSH);
+
+            dc.DrawRectangle(x, 0, blackWidth, blackHeight);
+        }
+    }
+};
+
 class LeftPanel : public wxPanel{
 public:
-    LeftPanel(wxWindow* parent) : wxPanel(parent){
+    LeftPanel(wxWindow* parent, PianoDraw* pianoDraw)
+    : wxPanel(parent), piano(pianoDraw){
         wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
         wxStaticText* text_tonality = new wxStaticText(this, wxID_ANY, "Tonalidad");
@@ -208,6 +290,7 @@ public:
         this->SetSizer(sizer);
     }
 private:
+    PianoDraw* piano;
     wxChoice* tone_note;
     wxTextCtrl* field_sequence;
 
@@ -220,6 +303,8 @@ private:
         }
 
         wxString tonality = tone_note->GetString(sel);
+
+        piano->paintScale(tonality.ToStdString());
         
         vector<string> incorrectNotes = validateSequence(tonality.ToStdString(), sequence.ToStdString());
         if(incorrectNotes.empty()){
@@ -231,94 +316,6 @@ private:
                 message += note + "\n";
             }
             wxMessageBox(message);
-        }
-    }
-};
-
-class PianoDraw : public wxPanel {
-public:
-    PianoDraw(wxWindow* parent) : wxPanel(parent) {
-        SetBackgroundStyle(wxBG_STYLE_PAINT);
-        Bind(wxEVT_PAINT, &PianoDraw::OnPaint, this);
-    }
-    void paintNotes(const vector<string>& notes){
-        // Aquí se implementaría la lógica para pintar las notas en el piano
-    }
-    void paintChords(const vector<string>& chords){
-        // Aquí se implementaría la lógica para pintar los acordes en el piano
-    }
-    void paintScale(const string& tonalidad){
-        vector<string> scale = scaleMap[tonalidad]; //pintar la escala de la tonalidad seleccionada en gris claro
-        paintIndexes(scale, wxColour(200, 200, 200)); // Gris claro
-        
-    }
-    void paintIndexes(const vector<string>& scale, const wxColour& color){
-        wxSize size = GetClientSize();
-        wxAutoBufferedPaintDC dc(this);
-        
-        int keyWidth  = size.x / 8;
-        int keyHeight = size.y;
-        dc.SetPen(*wxBLACK_PEN);
-        dc.SetBrush(wxBrush(color));
-
-        unordered_map<int, int> transformedIndexesWhite = {
-            {0, 0}, {2, 1}, {4, 2}, {5, 3}, {7, 4}, {9, 5}, {11, 6}
-        };
-        unordered_map<int, int> transformedIndexesBlack = {
-            {1, 0}, {3, 1}, {6, 3}, {8, 4}, {10, 5}
-        };
-
-        for(const string& note : scale){
-            int index =noteToIndex[note];
-            if (transformedIndexesWhite.find(index) == transformedIndexesWhite.end()) continue; // Ignorar notas no válidas
-            int index_mt = transformedIndexesWhite[index];
-            dc.SetBrush(wxBrush(color));
-            dc.DrawRectangle(index_mt * keyWidth, 0, keyWidth, keyHeight);
-        }
-
-        int blackHeight = keyHeight * 0.6;
-        int blackWidth  = keyWidth / 2;
-
-        for(const string& note : scale){
-            int index = noteToIndex[note];
-            if (transformedIndexesBlack.find(index) == transformedIndexesBlack.end()) continue; // Ignorar notas no válidas
-            int index_mt = transformedIndexesBlack[index];
-            int x = (index_mt + 1) * keyWidth - blackWidth / 2;
-
-            dc.SetBrush(wxBrush(color));
-            dc.DrawRectangle(x, 0, blackWidth, blackHeight);
-        }
-    }
-
-private:
-    void OnPaint(wxPaintEvent&) {
-        wxAutoBufferedPaintDC dc(this);
-
-        wxSize size = GetClientSize();
-        if (size.x <= 0 || size.y <= 0) return;
-
-        int keyWidth  = size.x / 8;
-        int keyHeight = size.y;
-
-        dc.SetPen(*wxBLACK_PEN);
-
-        //Teclas blancas
-        for (int i = 0; i < 8; ++i) {
-            dc.SetBrush(*wxWHITE_BRUSH);
-            dc.DrawRectangle(i * keyWidth, 0, keyWidth, keyHeight);
-        }
-
-        //Teclas negras
-        int blackHeight = keyHeight * 0.6;
-        int blackWidth  = keyWidth / 2;
-
-        for (int i = 0; i < 7; ++i) {
-            if (i == 2 || i == 6) continue;  
-
-            int x = (i + 1) * keyWidth - blackWidth / 2;
-
-            dc.SetBrush(*wxBLACK_BRUSH);
-            dc.DrawRectangle(x, 0, blackWidth, blackHeight);
         }
     }
 };
@@ -356,35 +353,49 @@ private:
 class PianoPanel : public wxPanel{
 public:
     PianoPanel(wxWindow* parent) : wxPanel(parent){
+
         wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
-        PianoDraw* piano = new PianoDraw(this);
-        PianoControls* piano_controls = new PianoControls(this);
+        piano = new PianoDraw(this);
+        piano_controls = new PianoControls(this);
 
         sizer->Add(piano_controls, 0, wxEXPAND | wxALL, 5);
         sizer->Add(piano, 1, wxEXPAND | wxALL, 5);
+
         this->SetSizer(sizer);
     }
+
+    PianoDraw* GetPiano(){
+        return piano;
+    }
+
+private:
+    PianoDraw* piano;
+    PianoControls* piano_controls;
 };
 
 class MyFrame : public wxFrame{
 public:
-    MyFrame() : wxFrame(nullptr, wxID_ANY, "Validador de notas y acordes", wxDefaultPosition, wxSize(610, 300)){
+    MyFrame() : wxFrame(nullptr, wxID_ANY,
+        "Validador de notas y acordes",
+        wxDefaultPosition, wxSize(610, 300))
+    {
         SetMinSize(wxSize(610, 300));
         SetMaxSize(wxSize(610, 300));
-        
+
         wxBoxSizer* mainSizer = new wxBoxSizer(wxHORIZONTAL);
 
-        LeftPanel* left = new LeftPanel(this);
-        PianoPanel* piano = new PianoPanel(this);
+        PianoPanel* pianoPanel = new PianoPanel(this);
+
+        LeftPanel* left =
+            new LeftPanel(this, pianoPanel->GetPiano());
 
         mainSizer->Add(left, 1, wxEXPAND | wxALL, 5);
-        mainSizer->Add(piano, 2, wxEXPAND | wxALL, 5);
+        mainSizer->Add(pianoPanel, 2, wxEXPAND | wxALL, 5);
 
         this->SetSizer(mainSizer);
     }
 };
-
 class MyApp : public wxApp {
 public:
     bool OnInit() {
